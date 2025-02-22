@@ -13,15 +13,59 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-- script: dotnet build --configuration $(buildConfiguration)
-  displayName: 'dotnet build $(buildConfiguration)'
+### INSTALL ###
+
+# - task: UseDotNet@2
+#   displayName: 'Install .NET Core SDK'
+#   inputs:
+#     version: 8.x
+#     performMultiLevelLookup: true
+#     includePreviewVersions: true # Required for preview versions
+
+
+### RESTORE ###
+
+# - task: DotNetCoreCLI@2
+#   inputs:
+#     command: 'restore'
+#     feedsToUse: 'select'
+#     vstsFeed: 'my-vsts-feed' # A series of numbers and letters
+
+# - task: NuGetCommand@2 # If you're using Ubuntu 24.04 or higher, you must use the NuGetAuthenticate task
+#   inputs:
+#     command: 'restore'
+#     restoreSolution: '**/*.sln'
+#     feedsToUse: 'select'
+
+# # Restore packages from an external feed
+# - task: DotNetCoreCLI@2
+#   displayName: Restore
+#   inputs:
+#     command: restore
+#     projects: '**/*.csproj'
+#     feedsToUse: config
+#     nugetConfigPath: NuGet.config    # Relative to root of the repository
+#     externalFeedCredentials: <Name of the NuGet service connection>
+
+
+### BUILD ###
 
 # - task: DotNetCoreCLI@2
 #   inputs:
 #     command: 'build'
-#     projects: '**/*.csproj'
 #     arguments: '--configuration $(buildConfiguration)'
 #   displayName: 'dotnet build $(buildConfiguration)'
+
+
+# - script: dotnet build --configuration $(buildConfiguration)
+#   displayName: 'dotnet build $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+  displayName: 'dotnet build $(buildConfiguration)'
 
 # - task: CmdLine@2
 #   inputs:
@@ -29,12 +73,40 @@ steps:
 #   displayName: 'dotnet build $(buildConfiguration)'
 
 
+# - task: DotNetCoreCLI@2
+#   inputs:
+#     command: 'custom'
+#     custom: 'tool'
+#     arguments: 'install -g dotnetsay'
+
+# - task: CmdLine@2
+#   inputs:
+#     script: 'dotnetsay'
+
+
+### PUBLISH ###
+
+# - script: dotnet publish --output $(Build.ArtifactStagingDirectory)
+
 - task: DotNetCoreCLI@2
   inputs:
-    command: 'custom'
-    custom: 'tool'
-    arguments: 'install -g dotnetsay'
+    command: publish
+    publishWebProjects: True
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: True
 
-- task: CmdLine@2
+# this code takes all the files in $(Build.ArtifactStagingDirectory) and uploads them as an artifact of your build.
+- task: PublishPipelineArtifact@1
   inputs:
-    script: 'dotnetsay'
+    targetPath: '$(Build.ArtifactStagingDirectory)' 
+    artifactName: 'myWebsite'
+
+
+# # do this after you've built your app, near the end of your pipeline in most cases
+# # for example, you do this before you deploy to an Azure web app on Windows
+# - task: DotNetCoreCLI@2
+#   inputs:
+#     command: publish
+#     publishWebProjects: True
+#     arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+#     zipAfterPublish: True
